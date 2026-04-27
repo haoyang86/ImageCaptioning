@@ -1,0 +1,41 @@
+name: image-captioning
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python
+  - python=3.10
+  - pip
+
+  # PyTorch with CUDA 12.4
+  - pytorch=2.5.*
+  - torchvision=0.20.*
+  - torchaudio=2.5.*
+  - pytorch-cuda=12.4
+
+  # Core scientific stack
+  - numpy
+  - pandas
+  - matplotlib
+  - scipy
+  - scikit-learn
+  - pillow
+  - tqdm
+  - pyyaml
+
+  # NLP / metrics
+  - nltk
+
+  # Jupyter / development
+  - jupyterlab
+  - notebook
+  - ipykernel
+
+  # pip-only packages
+  - pip:
+      - rouge-score
+      - pycocoevalcap
