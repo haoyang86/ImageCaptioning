@@ -4,7 +4,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-from configs import m3_config as cfg
+from configs import m_config as cfg
 from models.transformer_decoder_layer import TransformerDecoderLayer
 from models.positional_encoding import PositionalEncoding
 
