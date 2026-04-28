@@ -20,6 +20,10 @@ Create a raw folder in flickr8k, and run prepare_flickr8k.py
 
 Data is already splitted into training, validation and test by running the script.
 
+### embedding:
+
+download glove.6B.300d.txt to datasets/embeddings folder
+
 
 ### m_Config:
 
