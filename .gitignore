@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Synthetic mock dataset used by the e2e plumbing tests in tests/.
+# Built on the fly by tests/e2e_helpers.py so we can exercise dataset / collate /
+# trainer / checkpoint round-trip without downloading real Flickr8k.
+datasets/flickr8k_mock/
