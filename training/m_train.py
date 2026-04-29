@@ -7,10 +7,13 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
+import matplotlib.pyplot as plt
+
 from configs import m_config as cfg
 
 from data.dataset import FlickrDataset
 from data.collate_fn import FlickrCollate
+from data.vocab import Vocabulary
 
 from models.model import Model_IC
 from models.embedding_utils import (
@@ -174,6 +177,7 @@ def main():
     image_dir = dataset_root / cfg.image_folder
     train_csv = dataset_root / "train.csv"
     val_csv = dataset_root / "val.csv"
+    shared_vocab_path = dataset_root / "shared_vocab.pkl"
 
     output_dir = (
         project_root /
@@ -181,6 +185,15 @@ def main():
     )
 
     output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    plot_dir = (
+        project_root /
+        cfg.plot_dir
+    )
+    plot_dir.mkdir(
         parents=True,
         exist_ok=True,
     )
@@ -220,6 +233,7 @@ def main():
     print("Image dir:", image_dir)
     print("Train csv:", train_csv)
     print("Val csv:", val_csv)
+    print("Shared vocab:", shared_vocab_path)
     print("Batch size:", batch_size)
     print("Epochs:", num_epochs)
     print("Pretrained encoder:", pretrained_encoder)
@@ -243,6 +257,25 @@ def main():
     ])
 
     # --------------------------------------------------
+    # Shared Vocabulary
+    # --------------------------------------------------
+
+    if not shared_vocab_path.exists():
+        raise FileNotFoundError(
+            f"Shared vocabulary not found: {shared_vocab_path}\n"
+            f"Please run data/prepare_flickr8k.py first."
+        )
+
+    vocab = Vocabulary.load(shared_vocab_path)
+    vocab_size = len(vocab)
+
+    print("Vocab size:", vocab_size)
+    print("Pad idx:", vocab.pad_idx)
+    print("Start idx:", vocab.start_idx)
+    print("End idx:", vocab.end_idx)
+    print("Unk idx:", vocab.unk_idx)
+
+    # --------------------------------------------------
     # Datasets
     # --------------------------------------------------
 
@@ -251,6 +284,7 @@ def main():
         caption_file=train_csv,
         transform=transform,
         freq_threshold=cfg.freq_threshold,
+        vocab=vocab,
     )
 
     val_dataset = FlickrDataset(
@@ -258,17 +292,18 @@ def main():
         caption_file=val_csv,
         transform=transform,
         freq_threshold=cfg.freq_threshold,
+        vocab=vocab,
     )
 
     # Validation must use the same vocabulary as training
-    val_dataset.vocab = train_dataset.vocab
-
-    vocab = train_dataset.vocab
-    vocab_size = len(vocab)
+    # val_dataset.vocab = train_dataset.vocab
+    #
+    # vocab = train_dataset.vocab
+    # vocab_size = len(vocab)
 
     print("Train samples:", len(train_dataset))
     print("Val samples:", len(val_dataset))
-    print("Vocab size:", vocab_size)
+    # print("Vocab size:", vocab_size)
 
     # --------------------------------------------------
     # Optional pretrained embedding matrix
@@ -355,6 +390,9 @@ def main():
 
     best_val_loss = float("inf")
 
+    train_losses = []
+    val_losses = []
+
     # --------------------------------------------------
     # Training loop
     # --------------------------------------------------
@@ -380,6 +418,9 @@ def main():
             device=device,
             vocab_size=vocab_size,
         )
+
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
 
         elapsed = time.time() - start_time
 
@@ -422,6 +463,25 @@ def main():
     print("Training finished.")
     print("Best val loss:", best_val_loss)
     print("Best checkpoint:", best_ckpt_path)
+
+    # plot training loss vs val loss over epoches:
+    # save the plot in outputs folder
+    print(f"Saving loss plot to {plot_dir}...")
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, num_epochs + 1), train_losses, label='Train Loss', marker='o')
+    plt.plot(range(1, num_epochs + 1), val_losses, label='Validation Loss', marker='o')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title(f'Training vs Validation Loss ({cfg.experiment_name})')
+    plt.legend()
+    plt.grid(True)
+
+    # Save the plot
+    plot_path = plot_dir / "loss_plot.png"
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
+
+    print(f"Plot saved to: {plot_path}")
 
 
 if __name__ == "__main__":

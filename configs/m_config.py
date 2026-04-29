@@ -29,7 +29,7 @@ d_model = 512
 nhead = 8
 num_decoder_layers = 4
 dim_feedforward = 2048
-dropout = 0.1
+dropout = 0.1 # use for lstm
 max_len = 50
 
 # Encoder-decoder interface
@@ -114,6 +114,8 @@ num_workers = 0
 # Output Structure
 # ==========================================
 
+plot_dir = "outputs"
+
 checkpoint_dir = "outputs/checkpoints"
 
 best_checkpoint_name = f"{experiment_name}_best.pt"
@@ -135,9 +137,9 @@ metrics_result_name = "metrics_results.json"
 
 debug = True
 
-debug_batch_size = 8
-debug_num_epochs = 1
-debug_pretrained_encoder = False
+debug_batch_size = 32
+debug_num_epochs = 2
+debug_pretrained_encoder = True
 
 
 # ==========================================
