@@ -11,6 +11,7 @@ from configs import m3_config as cfg
 
 from data.dataset import FlickrDataset
 from data.collate_fn import FlickrCollate
+from data.vocab import Vocabulary
 
 from models.model_m3 import ModelM3
 from models.embedding_utils import (
@@ -174,6 +175,7 @@ def main():
     image_dir = dataset_root / cfg.image_folder
     train_csv = dataset_root / "train.csv"
     val_csv = dataset_root / "val.csv"
+    shared_vocab_path = dataset_root / "shared_vocab.pkl"
 
     output_dir = (
         project_root /
@@ -220,6 +222,7 @@ def main():
     print("Image dir:", image_dir)
     print("Train csv:", train_csv)
     print("Val csv:", val_csv)
+    print("Shared vocab:", shared_vocab_path)
     print("Batch size:", batch_size)
     print("Epochs:", num_epochs)
     print("Pretrained encoder:", pretrained_encoder)
@@ -241,6 +244,25 @@ def main():
     ])
 
     # --------------------------------------------------
+    # Shared Vocabulary
+    # --------------------------------------------------
+
+    if not shared_vocab_path.exists():
+        raise FileNotFoundError(
+            f"Shared vocabulary not found: {shared_vocab_path}\n"
+            f"Please run data/prepare_flickr8k.py first."
+        )
+
+    vocab = Vocabulary.load(shared_vocab_path)
+    vocab_size = len(vocab)
+
+    print("Vocab size:", vocab_size)
+    print("Pad idx:", vocab.pad_idx)
+    print("Start idx:", vocab.start_idx)
+    print("End idx:", vocab.end_idx)
+    print("Unk idx:", vocab.unk_idx)
+
+    # --------------------------------------------------
     # Datasets
     # --------------------------------------------------
 
@@ -249,6 +271,7 @@ def main():
         caption_file=train_csv,
         transform=transform,
         freq_threshold=cfg.freq_threshold,
+        vocab=vocab,
     )
 
     val_dataset = FlickrDataset(
@@ -256,17 +279,11 @@ def main():
         caption_file=val_csv,
         transform=transform,
         freq_threshold=cfg.freq_threshold,
+        vocab=vocab,
     )
-
-    # Validation must use the same vocabulary as training
-    val_dataset.vocab = train_dataset.vocab
-
-    vocab = train_dataset.vocab
-    vocab_size = len(vocab)
 
     print("Train samples:", len(train_dataset))
     print("Val samples:", len(val_dataset))
-    print("Vocab size:", vocab_size)
 
     # --------------------------------------------------
     # Optional pretrained embedding matrix
@@ -290,7 +307,10 @@ def main():
             )
         )
 
-        print("Pretrained embedding matrix:", pretrained_embedding_matrix.shape)
+        print(
+            "Pretrained embedding matrix:",
+            pretrained_embedding_matrix.shape
+        )
         print("GloVe found:", found_count)
         print("GloVe OOV:", oov_count)
 
