@@ -23,6 +23,7 @@ class FlickrDataset(Dataset):
         caption_file,
         transform=None,
         freq_threshold=5,
+        vocab=None,
     ):
         """
         Args
@@ -31,11 +32,18 @@ class FlickrDataset(Dataset):
             image folder
 
         caption_file:
-            csv/txt annotations:
-            image_name,caption
+            csv annotations with columns:
+            image, caption
 
         transform:
             image transforms
+
+        freq_threshold:
+            word frequency threshold used only if vocab is not provided
+
+        vocab:
+            existing shared vocabulary.
+            If provided, this dataset will use it directly.
         """
 
         self.image_dir = image_dir
@@ -48,14 +56,18 @@ class FlickrDataset(Dataset):
         self.images = self.df["image"]
         self.captions = self.df["caption"]
 
-        # build shared vocabulary
-        self.vocab = Vocabulary(
-            freq_threshold=freq_threshold
-        )
+        # Use shared vocabulary if provided.
+        # Otherwise build vocabulary from this dataset's captions.
+        if vocab is not None:
+            self.vocab = vocab
+        else:
+            self.vocab = Vocabulary(
+                freq_threshold=freq_threshold
+            )
 
-        self.vocab.build_vocabulary(
-            self.captions.tolist()
-        )
+            self.vocab.build_vocabulary(
+                self.captions.tolist()
+            )
 
     def __len__(self):
         return len(self.df)
