@@ -12,7 +12,7 @@
 
 # Encoder-decoder selection
 encoder_type = "Spatial" # Global vs Spatial
-decoder_type = "LSTM" # LSTM vs Transformer
+decoder_type = "Transformer" # LSTM vs Transformer
 
 model_type = encoder_type + "_" + decoder_type
 
@@ -28,8 +28,8 @@ attention_dim = 512
 d_model = 512
 nhead = 8
 num_decoder_layers = 4
-dim_feedforward = 2048
-dropout = 0.1 # use for lstm
+dim_feedforward = 2056
+dropout = 0.2 # use for lstm
 max_len = 50
 
 # Encoder-decoder interface
@@ -97,17 +97,17 @@ image_size = 224
 # Training Hyperparameters
 # ==========================================
 
-batch_size = 32
+batch_size = 16
 num_epochs = 10
 
 learning_rate = 1e-4
-weight_decay = 0.0
+weight_decay = 0.01
 grad_clip = 1.0
 
 freeze_backbone = True
 pretrained_encoder = True
 
-num_workers = 0
+num_workers = 2
 
 
 # ==========================================
@@ -135,7 +135,7 @@ metrics_result_name = "metrics_results.json"
 # Debug / Smoke Test Mode
 # ==========================================
 
-debug = True
+debug = False
 
 debug_batch_size = 32
 debug_num_epochs = 2

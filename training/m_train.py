@@ -4,6 +4,8 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import OneCycleLR
+
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
@@ -27,6 +29,7 @@ def train_one_epoch(
     loader,
     criterion,
     optimizer,
+    scheduler,
     device,
     vocab_size,
     epoch,
@@ -61,6 +64,8 @@ def train_one_epoch(
         )
 
         optimizer.step()
+
+        scheduler.step()
 
         total_loss += loss.item()
 
@@ -379,13 +384,23 @@ def main():
     ).to(device)
 
     criterion = nn.CrossEntropyLoss(
+        # label_smoothing=0.1,
         ignore_index=vocab.pad_idx,
+
     )
 
-    optimizer = optim.Adam(
+    optimizer = optim.AdamW(
         model.parameters(),
         lr=cfg.learning_rate,
         weight_decay=cfg.weight_decay,
+    )
+
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=cfg.learning_rate,      # Your 1e-4
+        steps_per_epoch=len(train_loader),
+        epochs=num_epochs,
+        pct_start=0.2                  # Spend 20% of time warming up
     )
 
     best_val_loss = float("inf")
@@ -406,6 +421,7 @@ def main():
             loader=train_loader,
             criterion=criterion,
             optimizer=optimizer,
+            scheduler=scheduler,
             device=device,
             vocab_size=vocab_size,
             epoch=epoch,
@@ -472,6 +488,7 @@ def main():
     plt.plot(range(1, num_epochs + 1), val_losses, label='Validation Loss', marker='o')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
+    plt.ylim(bottom=0)
     plt.title(f'Training vs Validation Loss ({cfg.experiment_name})')
     plt.legend()
     plt.grid(True)
