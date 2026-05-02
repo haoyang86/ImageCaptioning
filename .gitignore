@@ -221,3 +221,11 @@ __marimo__/
 # Built on the fly by tests/e2e_helpers.py so we can exercise dataset / collate /
 # trainer / checkpoint round-trip without downloading real Flickr8k.
 datasets/flickr8k_mock/
+datasets/flickr8k/raw/
+datasets/flickr8k/Flicker8k_Dataset/*
+datasets/flickr8k/*
+!datasets/flickr8k/README.md
+
+# Persistent SQLite stores for optuna studies (binary, not for VC).
+# The CSV exports (m{1,4}_optuna_trials.csv) are the human-readable record.
+optuna_studies/

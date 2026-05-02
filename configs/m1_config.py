@@ -10,9 +10,12 @@
 # ==========================================
 
 # LSTM decoder
-hidden_dim = 512
-num_lstm_layers = 1   # Show and Tell originally uses a single layer
-dropout = 0.1
+# Best HPs from optuna (m1_optuna trial 1, val_loss=3.088 at data_pct=0.25, 10 epochs).
+# Show and Tell originally uses a single layer; the search picked 2 layers / 1024 hidden.
+hidden_dim = 1024
+num_lstm_layers = 2
+dropout = 0.31
+encoder_dropout = 0.21
 max_len = 50
 
 # Encoder-decoder interface
@@ -27,7 +30,9 @@ encoder_dim = 512
 #   "random"
 #   "pretrained_frozen"
 #   "pretrained_finetune"
-embedding_type = "pretrained_frozen"
+# Using "random" for the first end-to-end validation run since we don't have
+# GloVe downloaded yet, and this matches what the optuna study used.
+embedding_type = "random"
 
 # GloVe 6B 300d
 embedding_dim = 300
@@ -79,16 +84,20 @@ image_size = 224
 # ==========================================
 
 batch_size = 32
-num_epochs = 10
+num_epochs = 20
 
-learning_rate = 1e-4
-weight_decay = 0.0
+# Optuna best lr was 4.17e-4 at data_pct=0.25, 10 epochs (training tokens = 75k).
+# We're scaling to data_pct=1.0, 20 epochs (training tokens = 600k), so kappa=8.
+# Per the Complete(d)P paper (arxiv 2512.22382), divide LR by sqrt(kappa) ~= 2.83.
+# 4.17e-4 / 2.83 ~= 1.5e-4.
+learning_rate = 1.5e-4
+weight_decay = 4.4e-6
 grad_clip = 1.0
 
 freeze_backbone = True
 pretrained_encoder = True
 
-num_workers = 0
+num_workers = 2
 
 
 # ==========================================
@@ -114,7 +123,7 @@ metrics_result_name = "metrics_results.json"
 # Debug / Smoke Test Mode
 # ==========================================
 
-debug = True
+debug = False
 
 debug_batch_size = 8
 debug_num_epochs = 1

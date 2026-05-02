@@ -1,11 +1,15 @@
 import json
 from pathlib import Path
-from typing import List, Dict, Any, Callable, Optional
+from typing import List, Dict, Any, Optional
 
 import torch
 from torch.utils.data import DataLoader
 
-from evaluation.decode_utils import greedy_generate, clean_caption_list
+from evaluation.decode_utils import (
+    greedy_generate,
+    beam_generate,
+    clean_caption_list,
+)
 from evaluation.metrics import compute_all_metrics, print_metrics
 
 
@@ -67,6 +71,11 @@ def generate_predictions(
     device: torch.device,
     max_len: int,
     max_batches: Optional[int] = None,
+
+    # decoding options
+    decode_strategy: str = "greedy",
+    beam_size: int = 3,
+    length_penalty: float = 0.7,
 ) -> List[Dict[str, Any]]:
     """
     Generate predictions for a dataset.
@@ -97,13 +106,32 @@ def generate_predictions(
         if max_batches is not None and batch_idx >= max_batches:
             break
 
-        predictions = greedy_generate(
-            model=model,
-            images=images,
-            vocab=vocab,
-            device=device,
-            max_len=max_len,
-        )
+        if decode_strategy == "greedy":
+            predictions = greedy_generate(
+                model=model,
+                images=images,
+                vocab=vocab,
+                device=device,
+                max_len=max_len,
+            )
+
+        elif decode_strategy == "beam":
+            predictions = beam_generate(
+                model=model,
+                images=images,
+                vocab=vocab,
+                device=device,
+                max_len=max_len,
+                beam_size=beam_size,
+                length_penalty=length_penalty,
+            )
+
+        else:
+            raise ValueError(
+                "Unsupported decode_strategy. "
+                "Please choose 'greedy' or 'beam'. "
+                f"Got: {decode_strategy}"
+            )
 
         predictions = clean_caption_list(predictions)
 
@@ -166,6 +194,11 @@ def run_evaluation(
     metrics_path: Path,
     max_len: int = 50,
     max_batches: Optional[int] = None,
+
+    # decoding options
+    decode_strategy: str = "greedy",
+    beam_size: int = 3,
+    length_penalty: float = 0.7,
 ):
     """
     Full offline evaluation pipeline.
@@ -193,6 +226,11 @@ def run_evaluation(
     print("Loaded checkpoint:", checkpoint_path)
     print("Checkpoint epoch:", checkpoint.get("epoch"))
     print("Checkpoint val_loss:", checkpoint.get("val_loss"))
+    print("Decode strategy:", decode_strategy)
+
+    if decode_strategy == "beam":
+        print("Beam size:", beam_size)
+        print("Length penalty:", length_penalty)
 
     prediction_items = generate_predictions(
         model=model,
@@ -202,6 +240,9 @@ def run_evaluation(
         device=device,
         max_len=max_len,
         max_batches=max_batches,
+        decode_strategy=decode_strategy,
+        beam_size=beam_size,
+        length_penalty=length_penalty,
     )
 
     save_json(

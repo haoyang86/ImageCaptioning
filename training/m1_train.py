@@ -1,5 +1,12 @@
+import sys
 from pathlib import Path
 import time
+
+# Allow running as `uv run training/m1_train.py` (script mode) by putting the
+# project root on sys.path. Running via `-m training.m1_train` also still works.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import torch
 import torch.nn as nn
@@ -102,6 +109,7 @@ def save_checkpoint(path, model, optimizer, epoch, train_loss, val_loss, vocab):
             "hidden_dim": cfg.hidden_dim,
             "num_lstm_layers": cfg.num_lstm_layers,
             "dropout": cfg.dropout,
+            "encoder_dropout": cfg.encoder_dropout,
             "max_len": cfg.max_len,
 
             "encoder_dim": cfg.encoder_dim,
@@ -265,6 +273,7 @@ def main():
         max_len=cfg.max_len,
         freeze_backbone=cfg.freeze_backbone,
         pretrained=pretrained_encoder,
+        encoder_dropout=cfg.encoder_dropout,
 
         embedding_type=cfg.embedding_type,
         embedding_dim=cfg.embedding_dim,

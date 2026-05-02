@@ -1,6 +1,15 @@
+import sys
 import zipfile
 import pandas as pd
 from pathlib import Path
+
+# Allow running as `uv run data/prepare_flickr8k.py` (script mode) by putting
+# the project root on sys.path. Running via `-m data.prepare_flickr8k` also still works.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from data.vocab import Vocabulary
 
 
 def unzip_if_needed(zip_path, extract_to):
@@ -100,8 +109,40 @@ def build_split_csv(
 
     print(
         f"{output_csv.name} saved: "
-        f"{split_df['image'].nunique()} images"
+        f"{split_df['image'].nunique()} images, "
+        f"{len(split_df)} captions"
     )
+
+    return split_df
+
+
+def build_shared_vocab(
+    train_csv,
+    output_vocab,
+    freq_threshold=5
+):
+    """
+    Build shared vocabulary from training captions only.
+    """
+
+    train_df = pd.read_csv(train_csv)
+
+    vocab = Vocabulary(
+        freq_threshold=freq_threshold
+    )
+
+    vocab.build_vocabulary(
+        train_df["caption"].tolist()
+    )
+
+    vocab.save(output_vocab)
+
+    print(
+        f"Saved shared vocabulary: {output_vocab.name} "
+        f"(vocab size = {len(vocab)})"
+    )
+
+    return vocab
 
 
 def main():
@@ -181,6 +222,21 @@ def main():
             "Flickr8k.token.txt not found"
         )
 
+    if train_file is None:
+        raise FileNotFoundError(
+            "Flickr_8k.trainImages.txt not found"
+        )
+
+    if val_file is None:
+        raise FileNotFoundError(
+            "Flickr_8k.devImages.txt not found"
+        )
+
+    if test_file is None:
+        raise FileNotFoundError(
+            "Flickr_8k.testImages.txt not found"
+        )
+
     # --------------------------------
     # captions.csv
     # --------------------------------
@@ -197,22 +253,41 @@ def main():
     # --------------------------------
     # train / val / test split
     # --------------------------------
+    train_csv = dataset_root / "train.csv"
+    val_csv = dataset_root / "val.csv"
+    test_csv = dataset_root / "test.csv"
+
     build_split_csv(
         captions_df,
         train_file,
-        dataset_root / "train.csv"
+        train_csv
     )
 
     build_split_csv(
         captions_df,
         val_file,
-        dataset_root / "val.csv"
+        val_csv
     )
 
     build_split_csv(
         captions_df,
         test_file,
-        dataset_root / "test.csv"
+        test_csv
+    )
+
+    # --------------------------------
+    # shared vocabulary
+    # build from train captions only
+    # --------------------------------
+    shared_vocab_path = (
+        dataset_root /
+        "shared_vocab.pkl"
+    )
+
+    build_shared_vocab(
+        train_csv=train_csv,
+        output_vocab=shared_vocab_path,
+        freq_threshold=5,
     )
 
     print("\nDone.")
@@ -221,7 +296,8 @@ def main():
         "  captions.csv\n"
         "  train.csv\n"
         "  val.csv\n"
-        "  test.csv"
+        "  test.csv\n"
+        "  shared_vocab.pkl"
     )
 
 
