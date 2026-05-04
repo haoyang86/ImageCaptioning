@@ -33,7 +33,7 @@ Reference:
     HPs at <epochs> epochs to a longer final run at K * <epochs>, divide
     the tuned LR by approximately sqrt(K).
 
-I referenced my optuna_trials.py from assignment 2 (CS7643) and the
+I referenced my optuna_trials.py from assignments 2 + 3 (CS7643) and the
 optuna pytorch examples (https://github.com/optuna/optuna-examples/tree/main/pytorch)
 while putting this together.
 """
