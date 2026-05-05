@@ -7,18 +7,34 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{float}
 
-\setlist[itemize]{noitemsep}
+% Compact list spacing (noitemsep zeroes itemsep/parsep; topsep/partopsep
+% are separate, so set them explicitly).
+\setlist[itemize]{noitemsep,topsep=2pt,partopsep=0pt}
+\setlist[enumerate]{noitemsep,topsep=2pt,partopsep=0pt}
 
-% Tighter spacing around floats (figures/tables) to reclaim vertical space
-\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
-\setlength{\floatsep}{6pt plus 2pt minus 2pt}
-\setlength{\intextsep}{6pt plus 2pt minus 2pt}
-\setlength{\abovecaptionskip}{2pt}
+% Tighter spacing around floats (figures/tables) to reclaim vertical space.
+% dbl* variants apply to figure*/table* (two-column floats like the
+% qualitative comparison figure).
+\setlength{\textfloatsep}{3pt plus 1pt minus 1pt}
+\setlength{\floatsep}{3pt plus 1pt minus 1pt}
+\setlength{\intextsep}{3pt plus 1pt minus 1pt}
+\setlength{\dbltextfloatsep}{3pt plus 1pt minus 1pt}
+\setlength{\dblfloatsep}{3pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{0pt}
 \setlength{\belowcaptionskip}{0pt}
+
+% Tighter vertical spacing around section/subsection headings.
+\makeatletter
+\def\cvprsection{\@startsection {section}{1}{\z@}%
+   {5pt plus 1pt minus 1pt}{3pt} {\large\bf}}
+\def\cvprsubsection{\@startsection {subsection}{2}{\z@}%
+   {4pt plus 1pt minus 1pt}{2pt} {\elvbf}}
+\makeatother
 
 
 % \teamtodo{...}: red placeholder text for sections the team still needs to write.
@@ -103,18 +119,38 @@ Solving this problem matters because countless images online lack
 useful text descriptions. A successful automated model greatly
 improves internet accessibility for visually impaired users, enhances
 image search capabilities, and helps organize large visual datasets.
-Furthermore, it makes image data much more useful in downstream
-applications that rely on combining both visual and textual
-information.
 
 \subsection{Dataset Details}
-All experiments were conducted using Flickr8k
-dataset~\cite{hodosh2013framing}, which is partitioned into 6k
-training images, 1k validation images and 1k test images. While larger
-datasets exist for image captioning task, Flickr8k was specifically
-selected to achieve an optimal balance between achieving meaningful
-model performance and maintaining manageable computation times during
-the iterative hyperparameter tuning phase.
+Following the \emph{Datasheets for Datasets}
+framework~\cite{gebru2018datasheets}, we provide additional context
+on the Flickr8K dataset~\cite{hodosh2013framing} beyond just its
+partition. Flickr8K was originally introduced by Hodosh et al.\ for
+sentence-based image description and ranking, where the original
+task was caption retrieval from a candidate pool rather than caption
+generation. The dataset contains 8,091 images sourced from Flickr,
+each paired with five independent captions written in English by
+Amazon Mechanical Turk workers, giving roughly 40,000 image-caption
+pairs in total. Compared to other commonly used image captioning
+benchmarks, Flickr8K sits on the smaller end of the
+spectrum~\cite{hossain2019survey}, with Flickr30K roughly $4\times$
+larger and MS COCO Captions roughly $15\times$ larger.
+
+Notably, the images were deliberately curated to focus on scenes
+involving people or animals performing some action, which biases
+the topic distribution toward people, dogs, and outdoor activities
+and away from static scenes or domain-specific imagery like medical
+or aerial photography. The English-only captions and the
+predominantly US-based Mechanical Turk worker pool also mean that
+the linguistic patterns we learn are unlikely to generalize to
+other languages or cultural framings of the same images. Hodosh et
+al.\ explicitly positioned Flickr8K as a research benchmark for
+sentence-based image description rather than a production-ready
+corpus, and we treat it the same way. Despite
+these limitations, Flickr8K is a deliberate fit for this study, as
+the dataset is small enough to make iterative hyperparameter tuning
+across four architectures feasible on modest compute, while still
+being large enough to expose meaningful differences between
+architectures.
 
 %-------------------------------------------------------------------------
 \section{Approach}
@@ -136,12 +172,6 @@ Table~\ref{tab:configs}. The global feature $+$ LSTM model (M1)
 corresponds to the Show and Tell~\cite{vinyals2015show} framework and
 serves as our baseline, while the other variants introduce spatial
 attention or Transformer-based decoding.
-
-This unified design enables controlled comparisons along two key
-dimensions: visual representation (global vs.\ spatial features) and
-decoding architecture (LSTM, attention-based LSTM, and Transformer),
-allowing us to systematically evaluate their impact on caption
-generation performance.
 
 \begin{figure}[t]
 \begin{center}
@@ -356,6 +386,28 @@ dataset use (Table~\ref{tab:hparams}):
     penalize overly large network weights.
 \end{itemize}
 
+\noindent\textbf{Problems anticipated and encountered.}
+We anticipated that the Transformer decoders would be the
+highest-risk component, since fitting an attention
+model on $\sim$6K training images is ripe for overfitting. 
+Several of our up-front choices
+reflected that assumption: freezing the ResNet-50 backbone to
+avoid catastrophic forgetting,
+keeping the decoder narrow at hidden size 512, and sharing a single
+small vocabulary across all four models so that the architecture
+comparison would not be confounded by tokenization.
+
+Despite these precautions, the first runs did not work as intended.
+Looking at the M3 loss curves, training
+and validation loss diverged relatively early. We worked
+through this iteratively rather than in one shot: each of the
+regularization choices already described (AdamW with decoupled
+weight decay, per-model dropout in $\{0.1, 0.2, 0.3\}$, and a small
+batch size for added gradient noise) were selected to address the divergence. 
+At inference time, switching from greedy decoding to beam search produced an
+additional gain of up to 3\% across our reported metrics. None of
+these were the first thing we tried.
+
 \noindent\textbf{Training results.} Figure~\ref{fig:loss} illustrates the
 loss curves of two examples (M1 and M3) across 10 epochs. The
 baseline model (global $+$ LSTM) demonstrates stable convergence, with
@@ -368,10 +420,12 @@ compared to LSTM.
 
 \begin{figure}[t]
 \begin{center}
-   \includegraphics[width=0.48\linewidth]{figures/plot01.png}\hfill
-   \includegraphics[width=0.48\linewidth]{figures/plot02.png}
+   \includegraphics[width=0.48\linewidth]{figures/m1.png}\hfill
+   \includegraphics[width=0.48\linewidth]{figures/m2.png} \\
+   \includegraphics[width=0.48\linewidth]{figures/m3.png} \hfill
+   \includegraphics[width=0.48\linewidth]{figures/m4.png}
    \caption{\footnotesize Training convergence comparison between
-   M1 (left) and M3 (right).}
+   M1 (top left), M2 (top right), M3 (bottom left), and M4 (bottom right).}
 \label{fig:loss}
 \end{center}
 \end{figure}
@@ -444,63 +498,36 @@ To assess the impact of prior semantic knowledge on the image caption
 generation process, three models, baseline (M1: Global$+$LSTM), M2
 (Spatial$+$Attention-LSTM) and M3 (Spatial$+$Transformer), were
 evaluated across three word embedding configurations. Although the
-experimental results in Tables~\ref{tab:emb-m1},
-\ref{tab:emb-m2}, and~\ref{tab:emb-m3} demonstrate that the
+experimental results in Table~\ref{tab:emb} demonstrate that the
 introduction of pre-trained GloVe embeddings yield negligible
 improvements across all architectures, the underlying reasons for
 this lack of impact could differ.
 
-\begin{table}[t]
+\begin{table}[H]
 \begin{center}
 \small
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{lccccccc}
+\begin{tabular}{llccccccc}
 \toprule
-Embedding & B-1 & B-2 & B-3 & B-4 & MET. & R-L & CIDEr \\
+Model & Embedding & B-1 & B-2 & B-3 & B-4 & MET. & R-L & CIDEr \\
 \midrule
-Random         & .568 & .379 & .245 & .155 & .355 & .445 & .370 \\
-GloVe frozen   & .562 & .372 & .241 & .152 & .356 & .442 & .373 \\
-GloVe finetune & .558 & .367 & .237 & .155 & .355 & .445 & .370 \\
+M1 & Random         & .568 & .379 & .245 & .155 & .355 & .445 & .370 \\
+   & GloVe frozen   & .562 & .372 & .241 & .152 & .356 & .442 & .373 \\
+   & GloVe finetune & .558 & .367 & .237 & .155 & .355 & .445 & .370 \\
+\midrule
+M2 & Random         & .546 & .369 & .243 & .154 & .368 & .454 & .417 \\
+   & GloVe frozen   & .572 & .386 & .255 & .165 & .368 & .452 & .421 \\
+   & GloVe finetune & .573 & .389 & .260 & .169 & .370 & .455 & .422 \\
+\midrule
+M3 & Random         & .581 & .398 & .271 & .181 & .383 & .465 & .473 \\
+   & GloVe frozen   & .582 & .398 & .271 & .183 & .379 & .463 & .467 \\
+   & GloVe finetune & .587 & .404 & .275 & .184 & .380 & .463 & .478 \\
 \bottomrule
 \end{tabular}
-\caption{\footnotesize Metrics results for baseline M1 (Global$+$LSTM).}
-\label{tab:emb-m1}
-\end{center}
-\end{table}
-
-\begin{table}[t]
-\begin{center}
-\small
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{lccccccc}
-\toprule
-Embedding & B-1 & B-2 & B-3 & B-4 & MET. & R-L & CIDEr \\
-\midrule
-Random         & .546 & .369 & .243 & .154 & .368 & .454 & .417 \\
-GloVe frozen   & .572 & .386 & .255 & .165 & .368 & .452 & .421 \\
-GloVe finetune & .573 & .389 & .260 & .169 & .370 & .455 & .422 \\
-\bottomrule
-\end{tabular}
-\caption{\footnotesize Metrics results for M2 (Spatial$+$LSTM Attention).}
-\label{tab:emb-m2}
-\end{center}
-\end{table}
-
-\begin{table}[t]
-\begin{center}
-\small
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{lccccccc}
-\toprule
-Embedding & B-1 & B-2 & B-3 & B-4 & MET. & R-L & CIDEr \\
-\midrule
-Random         & .581 & .398 & .271 & .181 & .383 & .465 & .473 \\
-GloVe frozen   & .582 & .398 & .271 & .183 & .379 & .463 & .467 \\
-GloVe finetune & .587 & .404 & .275 & .184 & .380 & .463 & .478 \\
-\bottomrule
-\end{tabular}
-\caption{\footnotesize Metrics results for M3 (Spatial$+$Transformer).}
-\label{tab:emb-m3}
+\caption{\footnotesize Embedding ablation across M1 (Global$+$LSTM),
+M2 (Spatial$+$Attn-LSTM), and M3 (Spatial$+$Transformer) under three
+word-embedding configurations.}
+\label{tab:emb}
 \end{center}
 \end{table}
 
@@ -572,38 +599,112 @@ highest metrics but easy to overfit with small training data. M4
 underperformed compared to M3 due to inefficient use of
 cross-attention with compressed global visual feature.
 
-This project successfully evaluated four different architectures to
-isolate the impact of visual representation and decoding architecture
-in the image captioning task. The results clearly demonstrate that
-preserving spatial visual features is critical for accurate
-image-text alignment. Furthermore, with rich spatial features from
-encoder, the Transformer architecture outperforms traditional
-attention-LSTM approach, by utilizing masked self-attention and
-cross-attention to generate highly contextual captions for image.
+The results clearly demonstrate that preserving spatial visual
+features is critical for accurate image-text alignment. Furthermore,
+with rich spatial features from the encoder, the Transformer
+architecture outperforms the attention-LSTM approach by utilizing
+masked self-attention and cross-attention to generate highly
+contextual captions for image.
 
-\teamtodo{The CS 7643 rubric expects the report to also address
-deep-learning-specific reflection questions: how the model structure
-reflects the problem structure; which parts of the model have learned
-parameters and which do not; how the data is pre/post-processed;
-whether the model overfit and how it generalized; what
-hyperparameters mattered and how they were chosen; what framework
-was used; what existing code or models were used as starting points;
-and potential future work. v2 does not address these directly; add
-a short paragraph (or expand this section) to cover them.}
+The architecture mirrors the task: a frozen ResNet-50 encoder maps
+pixels to features, and a learned sequence decoder (LSTM or
+Transformer self/cross-attention, alongside the word embeddings and
+output projection) maps those features to language under token-level
+cross-entropy. The pipeline is implemented in PyTorch with standard
+preprocessing (ImageNet image normalization, lowercased
+whitespace-tokenized captions) and beam-search inference.
+
+The most direct extension is scaling: Flickr30K and eventually MS
+COCO Captions, since M3's overfitting on Flickr8K is the cleanest
+evidence we are limited by data rather than by architecture. On the
+architecture side, a fully attention-based pipeline (ViT $+$
+Transformer decoder, alongside a contemporary baseline like
+BLIP-2~\cite{li2023blip2}) extrapolates the comparison from M1 to
+M4, and CIDEr-rewarded reinforcement learning is a complementary
+objective-level direction since our primary metric is
+non-differentiable.
 
 %-------------------------------------------------------------------------
 
 
-\begin{figure*}[h]
-\begin{center}
-% \fbox{\rule{0pt}{2.2in} \rule{0.95\linewidth}{0pt}}
-   \includegraphics[width=0.95\linewidth]{figures/comparison.png}
-   \caption{\footnotesize Qualitative comparison of generated
-   captions across three difficulty levels (easy, medium, and
-   challenging).}
+\begin{figure*}[t]
+\centering
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\footnotesize
+\begin{tabular}{@{}>{\centering\arraybackslash}m{0.04\linewidth} >{\raggedright\arraybackslash}m{0.295\linewidth} >{\raggedright\arraybackslash}m{0.295\linewidth} >{\raggedright\arraybackslash}m{0.295\linewidth}@{}}
+\toprule
+ & \textbf{Easy Case} & \textbf{Medium Case} & \textbf{Challenging Case} \\
+\midrule
+\textbf{Image} &
+  \includegraphics[width=\linewidth,height=2.6cm,keepaspectratio]{figures/ce1.jpg} &
+  \includegraphics[width=\linewidth,height=2.6cm,keepaspectratio]{figures/cm1.jpg} &
+  \includegraphics[width=\linewidth,height=2.6cm,keepaspectratio]{figures/cc1.jpg} \\
+\midrule
+\textbf{GT}\newline\textbf{(5)} &
+  {\scriptsize \textbf{(1)}~A beautiful brown and white St Bernard running in the snow. \textbf{(2)}~A St Bernard lunges through the snow. \textbf{(3)}~Large St Bernard dog wearing red collar galloping through the snow. \textbf{(4)}~St Bernard dog running in the snowy field. \textbf{(5)}~The large brown and white dog is running through the snow .} &
+  {\scriptsize \textbf{(1)}~A brown dog is running through neck-deep water carrying a tennis ball. \textbf{(2)}~A brown dog splashes in the water while carrying a ball in its mouth. \textbf{(3)}~A brown dog swims through water outdoors with a tennis ball in its mouth. \textbf{(4)}~A red dog, holding a ball, splashes through vegetation filled water. \textbf{(5)}~Brown dog with tennis ball in mouth, in water and bushes .} &
+  {\scriptsize \textbf{(1)}~A child and a woman are at waters edge in a big city. \textbf{(2)}~a large lake with a lone duck swimming in it with several people around the edge of it. \textbf{(3)}~A little boy at a lake watching a duck. \textbf{(4)}~A young boy waves his hand at the duck in the water surrounded by a green park. \textbf{(5)}~Two people are at the edge of a lake, facing the water and the city skyline .} \\
+\midrule
+\textbf{M1} &
+  a brown and white dog is running through the snow. &
+  a brown dog is playing in the water &
+  two people are standing on a beach \\
+\textbf{M2} &
+  a brown and white dog is running through the snow. &
+  a brown dog is playing with a tennis ball &
+  three people are standing in the water near a lake \\
+\textbf{M3} &
+  a brown and white dog is running through the snow. &
+  a brown dog is playing with a tennis ball in the water &
+  a man in a black shirt is standing in front of a building \\
+\textbf{M4} &
+  a brown and white dog is running through the snow. &
+  a brown and white dog is playing with a tennis ball in the water &
+  two people are standing in front of a large body of water \\
+\bottomrule
+\textbf{Image} &
+  \includegraphics[width=\linewidth,height=2.6cm,keepaspectratio]{figures/ce2.jpg} &
+  \includegraphics[width=\linewidth,height=2.6cm,keepaspectratio]{figures/cm2.jpg} &
+  \includegraphics[width=\linewidth,height=2.6cm,keepaspectratio]{figures/cc2.jpg} \\
+\midrule
+\textbf{GT}\newline\textbf{(5)} &
+  {\scriptsize \textbf{(1)}~Two brown dogs are playing with each other in the snow . \textbf{(2)}~Two brown dogs chase each other in the snow . \textbf{(3)}~Two brown dogs play in the snow . \textbf{(4)}~Two dogs playing in the snow . \textbf{(5)}~Two dogs playing or fighting in the snow .} &
+  {\scriptsize \textbf{(1)}~A girl in a ballet fairy costume is touched by a wand. \textbf{(2)}~A young girl performing the nutcracker. \textbf{(3)}~The little girl is standing on a stage dressed up as a pink fairy. \textbf{(4)}~The tiny girl dressed in a butterfly ballet costume , waves her wand near a nutcracker statue. \textbf{(5)}~Young girl waving turquiose leotard and pink tutu with wings waving wand .} &
+  {\scriptsize \textbf{(1)}~A mother and children is fishing on a boardwalk at night. \textbf{(2)}~A woman and three children stand on a dock with a fishing pole. \textbf{(3)}~A woman stands with children on a boardwalk at night overlooking the sea. \textbf{(4)}~Some people on a pier at night with one girl fishing off it. \textbf{(5)}~Woman with three children fishing over boardwalk in the evening.} \\
+\midrule
+\textbf{M1} &
+  two brown dogs play in the snow. &
+  a girl in a pink shirt is playing with a \textless unk\textgreater{} &
+  two people are sitting on a beach \\
+\textbf{M2} &
+  two brown dogs are playing in the snow &
+  a young girl in a pink dress is playing with a pink toy &
+  two people stand on a dock at the water \\
+\textbf{M3} &
+  two brown dogs play in the snow &
+  a little girl in a pink dress is swinging on her head &
+  two people are standing on a dock looking at the water \\
+\textbf{M4} &
+  two brown dogs play in the snow &
+  a little girl in a pink dress is playing with a hula hoops &
+  a man and a woman are sitting on a bench at the beach \\
+\bottomrule
+\end{tabular}
+\caption{\footnotesize Qualitative caption comparison across three
+difficulty levels (easy, medium, challenging) for the four model
+variants.  ``GT (5)'' lists the five reference captions per image.}
 \label{fig:qual}
-\end{center}
 \end{figure*}
+
+\vspace*{2in}
+
+\newpage
+
+\vspace*{2in}
+
+
+\newpage
 
 \section*{Work Division}
 
@@ -649,7 +750,6 @@ Oscar A.~Martinez &
 
 %-------------------------------------------------------------------------
 
-\clearpage 
 {\small
 \bibliographystyle{ieee_fullname}
 \bibliography{egbib}
