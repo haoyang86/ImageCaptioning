@@ -36,6 +36,12 @@
    {4pt plus 1pt minus 1pt}{2pt} {\elvbf}}
 \makeatother
 
+% Tighter top/bottom page margins to reclaim vertical space.
+% \topmargin shift moves the text block up (smaller top margin); the
+% paired \textheight extension uses the freed space at the bottom.
+\addtolength{\topmargin}{-0.5in}
+\addtolength{\textheight}{1in}
+
 
 % \teamtodo{...}: red placeholder text for sections the team still needs to write.
 % Search for "teamtodo" to find every spot that needs human-written content.
@@ -73,64 +79,88 @@ Georgia Institute of Technology\\
 {\tt\small ywei364@gatech.edu}
 }
 
+% \vspace*{-0.5in}
 \maketitle
 %\thispagestyle{empty}
 
 %%%%%%%%% ABSTRACT
 \begin{abstract}
    Image captioning requires effective integration of visual
-   understanding and natural language generation. In this work, we
-   propose a unified image captioning framework for controlled
-   comparison of visual representations and decoding architectures. A
-   pretrained ResNet-50~\cite{he2016deep} CNN encoder extracts global
-   and spatial image features, which are combined with LSTM,
+   understanding and natural language generation. This work proposes
+   a unified image captioning framework for a controlled comparison
+   of key design choices, focusing on visual representations,
+   decoding architectures, and embedding strategies. A pretrained
+   ResNet-50~\cite{he2016deep} CNN encoder extracts global and
+   spatial image features, which are combined with LSTM,
    attention-based LSTM, and Transformer decoders to form four model
    variants. The classical Show and Tell~\cite{vinyals2015show} model
    is used as the baseline, while the other variants introduce
-   spatial attention and Transformer-based
-   decoding~\cite{vaswani2017attention}. Experiments on the
-   Flickr8K~\cite{hodosh2013framing} dataset using standard metrics
-   (BLEU, METEOR, ROUGE-L, CIDEr) show that spatial features improve
-   visual grounding, and Transformer decoders further enhance
-   performance by better modeling contextual dependencies.
+   spatial attention~\cite{xu2015show} and Transformer-based
+   decoding~\cite{vaswani2017attention}. In addition, different word
+   embedding strategies are evaluated, including randomly initialized
+   embeddings and pretrained GloVe~\cite{pennington2014glove}
+   embeddings (frozen and fine-tuned).
+   Experiments on the Flickr8K~\cite{hodosh2013framing} dataset using
+   standard metrics show that spatial
+   features improve visual grounding, while Transformer decoders
+   further enhance performance by better modeling contextual
+   dependencies. Pretrained embeddings provide only marginal gains in
+   low-data settings, with limited benefit from fine-tuning. Overall,
+   the results suggest that performance improvements are primarily
+   driven by stronger representation learning and attention
+   mechanisms, while accurate visual grounding in complex scenes
+   remains a key challenge.
 \end{abstract}
 
 %%%%%%%%% BODY TEXT
 \section{Introduction / Background / Motivation}
 
 \subsection{Project Objective: Automatic Image Description}
-The goal of this project is to build a system that can look at a
-photograph and automatically generate a natural, human-like sentence
-describing what is happening in it. We aim to compare several
-different system designs under the exact same setup to identify which
-one writes the most accurate and descriptive captions.
+The goal of this project is to build a system that can look at an 
+image and automatically generate a natural, human-like sentence describing 
+what is happening in it. Beyond simply generating captions, the main 
+objective is to systematically study how different design choices 
+affect caption quality.
 
 \subsection{Current Practice and Key Limitations}
-Current image captioning models usually use an image encoder and a
-text decoder, using attention mechanisms~\cite{xu2015show} to focus on
-important image regions. However, these systems have limitations; they
-frequently produce generic or inaccurate captions, miss fine visual
-details, and are sensitive to internal architecture choices such as
-hidden size, layers, attention design, dropout, learning rate, and
-decoding strategy.
+Modern image captioning is typically formulated as encoder-decoder,
+with a CNN extracting visual features and a sequence model
+generating the description. Show and Tell~\cite{vinyals2015show}
+passes a single global vector to an LSTM; Show, Attend and
+Tell~\cite{xu2015show} adds soft attention over spatial feature
+maps; and more recent work replaces recurrent generation with
+Transformer self- and cross-attention~\cite{vaswani2017attention}.
+Prior work often introduces several of these changes at once, so it
+remains unclear which component contributes most to performance,
+which motivates a more systematic, controlled comparison.
 
 \subsection{Impact and Motivation}
 Solving this problem matters because countless images online lack
 useful text descriptions. A successful automated model greatly
 improves internet accessibility for visually impaired users, enhances
 image search capabilities, and helps organize large visual datasets.
+With wearable devices like smart glasses and mobile assistive
+technologies becoming more common, image captioning can also support
+real-time scene understanding by describing users' surroundings. A
+clearer understanding of which model components actually drive
+performance can guide the design of more efficient and robust
+captioning systems for these practical deployments.
 
 \subsection{Dataset Details}
 Following the \emph{Datasheets for Datasets}
 framework~\cite{gebru2018datasheets}, we provide additional context
-on the Flickr8K dataset~\cite{hodosh2013framing} beyond just its
-partition. Flickr8K was originally introduced by Hodosh et al.\ for
+on the Flickr8K dataset~\cite{hodosh2013framing}. Flickr8K was 
+originally introduced by Hodosh et al.\ for
 sentence-based image description and ranking, where the original
 task was caption retrieval from a candidate pool rather than caption
 generation. The dataset contains 8,091 images sourced from Flickr,
 each paired with five independent captions written in English by
 Amazon Mechanical Turk workers, giving roughly 40,000 image-caption
-pairs in total. Compared to other commonly used image captioning
+pairs in total. We use the standard 6,000 / 1,000 / 1,000
+train/validation/test split, treating each image-caption pair as a
+separate training example (yielding 30,000 training pairs) and
+computing evaluation metrics against all five reference captions
+per image. Compared to other commonly used image captioning
 benchmarks, Flickr8K sits on the smaller end of the
 spectrum~\cite{hossain2019survey}, with Flickr30K roughly $4\times$
 larger and MS COCO Captions roughly $15\times$ larger.
@@ -145,7 +175,8 @@ the linguistic patterns we learn are unlikely to generalize to
 other languages or cultural framings of the same images. Hodosh et
 al.\ explicitly positioned Flickr8K as a research benchmark for
 sentence-based image description rather than a production-ready
-corpus, and we treat it the same way. Despite
+corpus, and we treat it the same way. 
+Despite
 these limitations, Flickr8K is a deliberate fit for this study, as
 the dataset is small enough to make iterative hyperparameter tuning
 across four architectures feasible on modest compute, while still
@@ -171,7 +202,11 @@ we construct four model variants (M1 to M4), as summarized in
 Table~\ref{tab:configs}. The global feature $+$ LSTM model (M1)
 corresponds to the Show and Tell~\cite{vinyals2015show} framework and
 serves as our baseline, while the other variants introduce spatial
-attention or Transformer-based decoding.
+attention or Transformer-based decoding. By isolating these
+components against a fixed training and evaluation pipeline, the
+framework aims to identify which factors contribute most to caption
+quality, rather than confounding architecture changes with data or
+training-setup differences.
 
 \begin{figure}[t]
 \begin{center}
@@ -408,15 +443,17 @@ At inference time, switching from greedy decoding to beam search produced an
 additional gain of up to 3\% across our reported metrics. None of
 these were the first thing we tried.
 
-\noindent\textbf{Training results.} Figure~\ref{fig:loss} illustrates the
-loss curves of two examples (M1 and M3) across 10 epochs. The
-baseline model (global $+$ LSTM) demonstrates stable convergence, with
-training and validation loss aligning closely after 10 epochs.
-Conversely, despite aggressive regularization, the more complex
-Transformer exhibited a divergence between training and validation
-loss, which is typical for high-capacity models on small datasets.
-However, the Transformer ultimately achieved better overall performance
-compared to LSTM.
+\noindent\textbf{Training results.} Figure~\ref{fig:loss} illustrates
+the loss curves for M1 through M4 across 10 epochs. The LSTM-based
+models (M1 and M2) demonstrate relatively stable convergence, with
+training and validation loss aligning closely and plateauing around
+2.9. Conversely, despite aggressive regularization, the Transformer
+models (M3 and M4) exhibit a noticeable divergence between training
+and validation loss starting around epoch 4: training loss continues
+to decline while validation loss plateaus, a trend typical for
+high-capacity models on small datasets. Despite this divergence,
+the Transformer models ultimately reach a lower final validation
+loss (around 2.65 to 2.7) than the LSTM baseline.
 
 \begin{figure}[t]
 \begin{center}
@@ -702,8 +739,7 @@ variants.  ``GT (5)'' lists the five reference captions per image.}
 \newpage
 
 \vspace*{2in}
-
-
+\clearpage
 \newpage
 
 \section*{Work Division}
@@ -737,10 +773,10 @@ Qun Wei &
   Implemented Global encoder and a unified model for M1, M2, M3, and M4 for team collaboration.
   Run experiments for embeddings for all models.
   Report writing section 3.1, 3.3 and 4. \\
-Oscar A.~Martinez & 
-  Transcription of report from Word to \LaTeX, and overall report formatting.
-  Initial M1 and M4 code development.
-  Creation of Optuna scripts for hyperparameter tuning (M1 and M4). \\
+Oscar A.~Martinez &
+  Initial M1 and M4 code development (later superseded by the team's unified \texttt{Model\_IC}).
+  Creation of Optuna scripts for hyperparameter tuning (M1 and M4).
+  Transcription of report from Word to \LaTeX, and overall report formatting. \\
 \bottomrule
 \end{tabular}
 \caption{\footnotesize Contributions of team members.}
