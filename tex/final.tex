@@ -13,6 +13,13 @@
 
 \setlist[itemize]{noitemsep}
 
+% Tighter spacing around floats (figures/tables) to reclaim vertical space
+\setlength{\textfloatsep}{6pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\setlength{\abovecaptionskip}{2pt}
+\setlength{\belowcaptionskip}{0pt}
+
 
 % \teamtodo{...}: red placeholder text for sections the team still needs to write.
 % Search for "teamtodo" to find every spot that needs human-written content.
@@ -140,10 +147,10 @@ generation performance.
 \begin{center}
 % \fbox{\rule{0pt}{1.6in} \rule{0.9\linewidth}{0pt}}
    \includegraphics[width=0.95\linewidth]{figures/architecture.png}
-\end{center}
-   \caption{Overview of the unified image captioning framework
-    with interchangeable encoder and decoder components.}
+   \caption{\footnotesize Overview of the unified image captioning
+    framework with interchangeable encoder and decoder components.}
 \label{fig:framework}
+\end{center}
 \end{figure}
 
 \begin{table}[t]
@@ -160,9 +167,9 @@ M3 & Spatial & Transformer    & Transformer w/ spatial \\
 M4 & Global  & Transformer    & Transformer w/ global \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Model Configurations.}
+\caption{\footnotesize Model Configurations.}
 \label{tab:configs}
+\end{center}
 \end{table}
 
 \subsection{Visual encoding}
@@ -261,30 +268,46 @@ lexical overlap and structural similarity, while METEOR offers
 additional sensitivity to semantic variations. All metrics are
 reported to provide a comprehensive evaluation of model performance.
 
-\teamtodo{Per the rubric, the report must mention any code
-repositories or other sources used and what changes were made. 
-I referenced some of my code from Assignment 2 and 3, 
-but did not reuse anything verbatim. \href{https://github.com/haoyang86/ImageCaptioning/tree/main}{Our GitHub Repo}}
-
 \section{Experiments and Results}
 
 \subsection{Experimental setup and model configurations}
 
-\paragraph{Dataset.}
+\noindent\textbf{Code repositories and prior sources.}
+The full implementation is available at our
+\href{https://github.com/haoyang86/ImageCaptioning/tree/main}{GitHub
+repository}. The training pipeline, encoders, attention module,
+Transformer decoder layer, and evaluation utilities were written from
+scratch in PyTorch; we referenced patterns from our own prior CS 7643
+coursework (Assignments 2 and 3) for scaffolding such as training-loop
+structure and evaluation harnesses, but no code was copied verbatim.
+Third-party dependencies are limited to \texttt{torchvision}'s
+ImageNet-pretrained ResNet-50 weights, the standard NLTK BLEU/METEOR
+implementations, and a CIDEr scorer adapted from the public
+coco-caption toolkit. This report is built from the course-provided
+\href{https://www.overleaf.com/project/5f5ec061aa94370001943266}{\LaTeX{}
+template}.
+
+% Commented this out as its standard practice and we need space
+% ; the preamble additionally reuses small formatting helpers
+% (custom commands, list spacing, table float conventions) accumulated
+% across the author's prior coursework, but no substantive content was
+% carried over.
+
+\noindent\textbf{Dataset.}
 Flickr8k~\cite{hodosh2013framing} (partition into training-6k,
 dev-1k, and test-1k data).
 
-\paragraph{Loss function.} All models were trained to minimize the
+\noindent\textbf{Loss function.} All models were trained to minimize the
 cross-entropy loss, which calculates the per-token probability error
 of the generated caption against the ground truth.
 
-\paragraph{Optimizer.} The AdamW~\cite{loshchilov2019decoupled}
+\noindent\textbf{Optimizer.} The AdamW~\cite{loshchilov2019decoupled}
 optimizer was preferred over standard Adam. AdamW decouples weight
 decay from the gradient update step, which is recommended for
 training complex sequence models like transformer and LSTM, leading
 to better generalization.
 
-\paragraph{Transfer Learning.} Due to smaller dataset (Flickr8k),
+\noindent\textbf{Transfer Learning.} Due to smaller dataset (Flickr8k),
 transfer learning was utilized to accelerate convergence across all
 the models. The weights of the Resnet-50 encoder were strictly frozen
 during training. The model primarily focuses on optimizing the
@@ -303,14 +326,14 @@ M3 & 1e-4 & 0.05 & 512 & 4 & 8   & 0.3 \\
 M4 & 1e-4 & 0.05 & 512 & 4 & 8   & 0.3 \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Model-specific best hyperparameters.
+\caption{\footnotesize Model-specific best hyperparameters.
 WD: weight decay; Hid.: hidden/dim; Lyrs.: layers; Drop.: dropout.
 All models are trained for 10 epochs with batch size 16.}
 \label{tab:hparams}
+\end{center}
 \end{table}
 
-\paragraph{Hyperparameter Tuning Strategy.} The hyperparameters were
+\noindent\textbf{Hyperparameter Tuning Strategy.} The hyperparameters were
 refined through iterative tuning, with specific attention to
 regularization mainly due to relatively small size of Flickr8k
 dataset use (Table~\ref{tab:hparams}):
@@ -333,7 +356,7 @@ dataset use (Table~\ref{tab:hparams}):
     penalize overly large network weights.
 \end{itemize}
 
-\paragraph{Training results.} Figure~\ref{fig:loss} illustrates the
+\noindent\textbf{Training results.} Figure~\ref{fig:loss} illustrates the
 loss curves of two examples (M1 and M3) across 10 epochs. The
 baseline model (global $+$ LSTM) demonstrates stable convergence, with
 training and validation loss aligning closely after 10 epochs.
@@ -347,10 +370,10 @@ compared to LSTM.
 \begin{center}
    \includegraphics[width=0.48\linewidth]{figures/plot01.png}\hfill
    \includegraphics[width=0.48\linewidth]{figures/plot02.png}
-\end{center}
-   \caption{Training convergence comparison between M1 (left) and
-   M3 (right).}
+   \caption{\footnotesize Training convergence comparison between
+   M1 (left) and M3 (right).}
 \label{fig:loss}
+\end{center}
 \end{figure}
 
 \subsection{Architecture Comparison}
@@ -410,10 +433,10 @@ M3 & 0.58 & 0.40 & 0.27 & 0.18 & 0.38 & 0.46 & 0.47 \\
 M4 & 0.57 & 0.39 & 0.25 & 0.17 & 0.37 & 0.45 & 0.43 \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Quantitative architecture comparison (best hyperparameter
-model). B-$n$: BLEU-$n$, MET.: METEOR, R-L: ROUGE-L.}
+\caption{\footnotesize Quantitative architecture comparison (best
+hyperparameter model). B-$n$: BLEU-$n$, MET.: METEOR, R-L: ROUGE-L.}
 \label{tab:arch}
+\end{center}
 \end{table}
 
 \subsection{Embedding Comparison}
@@ -440,9 +463,9 @@ GloVe frozen   & .562 & .372 & .241 & .152 & .356 & .442 & .373 \\
 GloVe finetune & .558 & .367 & .237 & .155 & .355 & .445 & .370 \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Metrics results for baseline M1 (Global$+$LSTM).}
+\caption{\footnotesize Metrics results for baseline M1 (Global$+$LSTM).}
 \label{tab:emb-m1}
+\end{center}
 \end{table}
 
 \begin{table}[t]
@@ -458,9 +481,9 @@ GloVe frozen   & .572 & .386 & .255 & .165 & .368 & .452 & .421 \\
 GloVe finetune & .573 & .389 & .260 & .169 & .370 & .455 & .422 \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Metrics results for M2 (Spatial$+$LSTM Attention).}
+\caption{\footnotesize Metrics results for M2 (Spatial$+$LSTM Attention).}
 \label{tab:emb-m2}
+\end{center}
 \end{table}
 
 \begin{table}[t]
@@ -476,9 +499,9 @@ GloVe frozen   & .582 & .398 & .271 & .183 & .379 & .463 & .467 \\
 GloVe finetune & .587 & .404 & .275 & .184 & .380 & .463 & .478 \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Metrics results for M3 (Spatial$+$Transformer).}
+\caption{\footnotesize Metrics results for M3 (Spatial$+$Transformer).}
 \label{tab:emb-m3}
+\end{center}
 \end{table}
 
 For baseline M1 and M2 architecture, the primary limitation is
@@ -575,15 +598,23 @@ a short paragraph (or expand this section) to cover them.}
 \begin{center}
 % \fbox{\rule{0pt}{2.2in} \rule{0.95\linewidth}{0pt}}
    \includegraphics[width=0.95\linewidth]{figures/comparison.png}
-\end{center}
-   \caption{Qualitative comparison of generated captions across three difficulty levels (easy, medium, and challenging).}
+   \caption{\footnotesize Qualitative comparison of generated
+   captions across three difficulty levels (easy, medium, and
+   challenging).}
 \label{fig:qual}
+\end{center}
 \end{figure*}
 
 \section*{Work Division}
 
-\teamtodo{Paragraph description not yet written. The rubric asks for
-both a short paragraph and the table below.}
+Work was distributed so that every member contributed to both
+implementation and writing. Model variants were primarily owned as
+follows: Hao led M3, Yongjian led M2, and Oscar led the initial M1
+and M4 implementations; Qun and Yongjian jointly developed the LSTM
+attention decoder shared across variants. Cross-cutting work (the
+unified codebase, embedding ablation, evaluation harness, and
+\LaTeX{} transcription) and individual report sections were divided
+across the team as detailed in Table~\ref{tab:contributions}.
 
 \begin{table}[H]
 \begin{center}
@@ -606,14 +637,14 @@ Qun Wei &
   Run experiments for embeddings for all models.
   Report writing section 3.1, 3.3 and 4. \\
 Oscar A.~Martinez & 
-  Transcription of report from Word to \LaTeX, and overall report formatting
+  Transcription of report from Word to \LaTeX, and overall report formatting.
   Initial M1 and M4 code development.
-  Creation of Optuna scripts for hyperparameter tuning (M1 and M4; unused) \\
+  Creation of Optuna scripts for hyperparameter tuning (M1 and M4). \\
 \bottomrule
 \end{tabular}
-\end{center}
-\caption{Contributions of team members.}
+\caption{\footnotesize Contributions of team members.}
 \label{tab:contributions}
+\end{center}
 \end{table}
 
 %-------------------------------------------------------------------------
