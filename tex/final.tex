@@ -586,41 +586,50 @@ results.
 
 \subsection{Qualitative Analysis}
 To further understand model behavior beyond quantitative metrics, we
-present qualitative comparisons across three levels of difficulty:
-easy, medium, and challenging cases, as shown in
-Figure~\ref{fig:qual}.
+present qualitative comparisons across three levels of difficulty,
+as shown in Figure~\ref{fig:qual}. Each column (easy, medium,
+challenging) contains two representative examples, allowing us to
+assess consistency within each difficulty level.
 
-In easy cases (Figure~\ref{fig:qual}, left), all models generate
-nearly identical and accurate captions, correctly identifying the
-main object and action (e.g., dog and running in snow). This suggests
-that when visual cues are salient and unambiguous, architectural
-differences have minimal impact on performance. In medium cases
-(Figure~\ref{fig:qual}, middle), all models correctly capture the
-main scene but differ in the level of detail. For example, while
-all models recognize a dog playing in water, M1 describes only the
-general activity (``playing in the water'') and misses the key
-object (tennis ball). M2 captures the tennis ball but omits the
-water context. In contrast, M3 and M4 incorporate both the tennis
-ball and water, with M4 further including attribute-level details
-such as color. This demonstrates that models with stronger
-representation and decoding capacity produce more complete and
-descriptive captions. In challenging cases (Figure~\ref{fig:qual},
-right), all models fail to fully capture the ground-truth semantics,
-but exhibit distinct error patterns. For instance, none of the
-models detect the small object or the interaction (watching),
-instead generating coarse descriptions such as ``people standing
-near water.'' M1 and M4 produce plausible but generic captions, M2
-partially improves environmental understanding (e.g., ``lake''),
-while M3 generates an unrelated scene (e.g., involving a building),
-indicating hallucination. These differences highlight limitations in
-capturing fine-grained details and interactions.
+In easy cases (Figure~\ref{fig:qual}, left), the main subject and
+action are visually salient against clean, simple backgrounds, with
+the subject occupying a large portion of the image. Under these
+conditions, all four models generate nearly identical and accurate
+captions, suggesting that when foreground and context are
+well-separated, even simpler architectures reliably capture the
+dominant global semantics and architectural differences have
+minimal impact on performance.
 
-Overall, as task difficulty increases, model differences become more
-pronounced. Transformer-based models tend to produce richer
-descriptions in moderately complex scenarios but may also introduce
-instability in difficult cases. This behavior is likely amplified by
-the limited size of the dataset (Flickr8k), which can lead to
-reliance on frequent patterns and reduced robustness.
+In medium cases (Figure~\ref{fig:qual}, middle), the primary subject
+remains clear, but the scene becomes more complex with cluttered
+backgrounds, partial occlusion, and less salient secondary objects
+such as a tennis ball or a handheld wand. The models begin to
+diverge: M1 captures only the dominant activity (e.g., ``playing in
+the water''), M2 picks up the secondary object but omits scene
+context, and M3 and M4 integrate both, with M4 occasionally adding
+attribute-level details such as color. The same general progression
+holds across both medium examples, though M3 and M4 occasionally
+drift into mild hallucination (e.g., M3's ``swinging on her head''),
+foreshadowing the instability we see in the challenging column.
+
+In challenging cases (Figure~\ref{fig:qual}, right), the entire
+scene becomes visually complex, with multiple objects, cluttered
+layouts, low contrast between foreground and background, and at
+times poor lighting. All four models fail to fully capture the
+ground-truth semantics but exhibit distinct error patterns: M1 and
+M4 produce plausible but generic captions, M2 partially improves
+environmental understanding (e.g., ``lake''), while M3 generates an
+unrelated scene (e.g., involving a building), indicating
+hallucination. This suggests that when visual evidence is weak or
+ambiguous, stronger generative capacity can lead to increased
+instability rather than to better grounding.
+
+Overall, model differences become more pronounced as scene
+complexity increases. Attention-based models improve fine-grained
+detail capture in moderately complex scenes, but robust visual
+grounding under clutter, occlusion, and low-visibility conditions
+remains a key challenge for all four architectures, particularly
+when trained on a relatively small dataset like Flickr8K.
 
 %-------------------------------------------------------------------------
 \section{Discussion and Conclusion}
@@ -636,6 +645,18 @@ highest metrics but easy to overfit with small training data. M4
 underperformed compared to M3 due to inefficient use of
 cross-attention with compressed global visual feature.
 
+Looking back at the project's stated goal of isolating which
+architectural axis matters most for caption quality, the controlled
+comparison succeeded: it produced a clear ranking
+(M3 $>$ M4 $\approx$ M2 $>$ M1) and identified spatial features as
+the dominant axis under our fixed training and evaluation setup.
+The project fell short on generalization to challenging scenes,
+however, where all four models struggle with small-object and
+interaction cases. We attribute that gap primarily to Flickr8K's
+limited scale and topic skew, both of which constrain how robustly
+any of these architectures can fit the long tail of caption
+variation.
+
 The results clearly demonstrate that preserving spatial visual
 features is critical for accurate image-text alignment. Furthermore,
 with rich spatial features from the encoder, the Transformer
@@ -649,7 +670,8 @@ Transformer self/cross-attention, alongside the word embeddings and
 output projection) maps those features to language under token-level
 cross-entropy. The pipeline is implemented in PyTorch with standard
 preprocessing (ImageNet image normalization, lowercased
-whitespace-tokenized captions) and beam-search inference.
+whitespace-tokenized captions) and beam-search inference (beam
+width 3, max length 50).
 
 The most direct extension is scaling: Flickr30K and eventually MS
 COCO Captions, since M3's overfitting on Flickr8K is the cleanest
